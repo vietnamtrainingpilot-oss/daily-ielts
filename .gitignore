@@ -1,0 +1,54 @@
+# ---------------------------------------------------------------------------
+# Signing secrets. The keystore itself lives outside this repository
+# (D:\toolchain\keys\dailyielts-upload.jks), but these rules are the backstop
+# in case a keystore is ever copied into the tree by accident.
+# Losing or leaking this key permanently strands every installed user.
+# ---------------------------------------------------------------------------
+android/key.properties
+*.jks
+*.keystore
+
+# ---------------------------------------------------------------------------
+# Dart / Flutter
+# ---------------------------------------------------------------------------
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+generated_plugin_registrant.dart
+
+# ---------------------------------------------------------------------------
+# Secrets and unrelated projects.
+#
+# .env holds a live ENCRYPTION_KEY. Committing it would publish a credential
+# into permanent, immutable git history where rotating it later does not
+# remove it.
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+
+# freellmapi/ is a separate project -- a 440 MB LLM API gateway with its own
+# git repository, its own .env, and a server/data directory that holds
+# credentials and request logs. It has nothing to do with this Flutter app and
+# must never be swept into a public repository by a recursive add.
+freellmapi/
+
+# ---------------------------------------------------------------------------
+# IDE / OS
+# ---------------------------------------------------------------------------
+.idea/
+.vscode/
+*.iml
+*.iws
+.DS_Store
+Thumbs.db
+
+# ---------------------------------------------------------------------------
+# Local scratch
+# ---------------------------------------------------------------------------
+*.log
+*.tmp
