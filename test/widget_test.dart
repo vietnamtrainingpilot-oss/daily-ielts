@@ -77,6 +77,12 @@ void main() {
     ),
     clock: () => clockNow,
     permissionProbe: () async => perms,
+    // Never let this reach the real channel. An unregistered MethodChannel call
+    // inside testWidgets' fake-async zone never completes -- the
+    // MissingPluginException reply is delivered outside the fake clock -- so
+    // _boot() would await it forever and the app would sit on its loading
+    // spinner. Same reason clock and permissionProbe are injected above.
+    launchPathReader: () async => 'session_start',
   );
 
   /// Grows the test surface so a whole screen fits in the tree.
@@ -192,6 +198,7 @@ void main() {
           ),
           clock: () => now,
           permissionProbe: () async => perms,
+          launchPathReader: () async => 'session_start',
         ),
       );
       for (var i = 0; i < 20; i++) {

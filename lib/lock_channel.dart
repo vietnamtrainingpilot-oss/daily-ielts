@@ -188,6 +188,32 @@ class LockChannel {
   static Future<void> openHomeSettings() =>
       _channel.invokeMethod('openHomeSettings');
 
+  /// Which launch path brought this process up, as reported by native.
+  ///
+  /// Native reads its own launch Intent and answers with `scheduled_fire` or
+  /// `session_start`. This is a read, not a decision: Dart still evaluates the
+  /// gate once and records the path it was told about.
+  ///
+  /// Returns null when the query is unavailable -- tests, non-Android, or a
+  /// platform that has not implemented it -- so the caller falls back instead of
+  /// throwing into the gate. See AGENTS.md section 7.
+  ///
+  /// TESTING: inject a reader, do not let this hit the channel inside
+  /// `testWidgets`. An unregistered MethodChannel call in a fake-async zone never
+  /// completes, because the MissingPluginException reply is delivered outside the
+  /// fake clock -- so `await` on it hangs rather than throwing, and any boot path
+  /// that awaits this stalls forever. That is exactly why `DailyIeltsApp` takes an
+  /// injectable reader alongside its injectable clock and permission probe.
+  static Future<String?> launchPath() async {
+    try {
+      return await _channel.invokeMethod<String>('launchPath');
+    } on PlatformException {
+      return null;
+    } on MissingPluginException {
+      return null;
+    }
+  }
+
   /// Native asking Dart to re-run the Path 1 check. Exposed so the Android side
   /// can nudge a re-evaluation on resume.
   static Future<void> notifySessionStart() =>

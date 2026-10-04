@@ -23,6 +23,18 @@ Future<void> main() async {
 /// Injected so tests can supply a stub instead of a platform channel.
 typedef GateBuilder = LockGate Function(AppDatabase db);
 
+/// Injected so tests can state the launch path without a platform channel.
+typedef LaunchPathReader = Future<String?> Function();
+
+/// Maps the label native reports into the [TriggerPath] the gate records.
+///
+/// Both paths produce an identical gate decision -- `TriggerPath` is used only
+/// for the recorded event label -- so an unknown or missing label is not a
+/// security question. `session_start` is the accurate description of an ordinary
+/// launch, which is what a channel-less test run is.
+TriggerPath pathForLabel(String? label) =>
+    label == 'scheduled_fire' ? TriggerPath.scheduledFire : TriggerPath.sessionStart;
+
 class DailyIeltsApp extends StatefulWidget {
   const DailyIeltsApp({
     super.key,
@@ -30,6 +42,7 @@ class DailyIeltsApp extends StatefulWidget {
     this.gateBuilder,
     this.clock,
     this.permissionProbe,
+    this.launchPathReader,
   });
 
   final AppDatabase db;
@@ -44,6 +57,11 @@ class DailyIeltsApp extends StatefulWidget {
   /// Overrides the real platform probe. Tests and non-Android platforms get
   /// [PermissionState.unknown] without touching a MethodChannel.
   final Future<PermissionState> Function()? permissionProbe;
+
+  /// Overrides the native launch-path query. A scheduled interrupt and an
+  /// ordinary unlock make the same gate decision, so this only affects which
+  /// label the resulting LockEvent carries.
+  final LaunchPathReader? launchPathReader;
 
   @override
   State<DailyIeltsApp> createState() => _DailyIeltsAppState();
@@ -96,12 +114,16 @@ class _DailyIeltsAppState extends State<DailyIeltsApp> {
     final onboarded = await widget.db.getState(AppDatabase.kOnboarded);
     final perms =
         await (widget.permissionProbe ?? LockChannel.permissionStatus)();
+    final launch = await (widget.launchPathReader ?? LockChannel.launchPath)();
     if (!mounted) return;
     setState(() {
       _onboarded = onboarded == '1';
       _perms = perms;
     });
-    await _evaluate(TriggerPath.sessionStart);
+    // One evaluation, told what triggered it. A native-pushed `onScheduledFire`
+    // would land here as a second evaluation, and evaluate() writes a LockEvent
+    // every time it is locked -- so the same interrupt would be counted twice.
+    await _evaluate(pathForLabel(launch));
   }
 
   Future<void> _evaluate(TriggerPath path) async {

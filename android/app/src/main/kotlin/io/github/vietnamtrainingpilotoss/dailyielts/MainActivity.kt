@@ -42,6 +42,12 @@ class MainActivity : FlutterActivity() {
                     result.success(true)
                 }
 
+                // Read-only: which launch path brought this activity up. MainActivity
+                // is always the ordinary session start; LockActivity overrides it by
+                // reading its own Intent. Dart records this rather than assuming, so
+                // a scheduled interrupt is not logged as a plain unlock.
+                "launchPath" -> result.success(launchPathFor(intent))
+
                 "startSchedule" -> {
                     val triggerAt = call.argument<Long>("triggerAt") ?: 0L
                     // Without SCHEDULE_EXACT_ALARM this throws. A crash here would

@@ -32,6 +32,16 @@ class LockAlarm {
         const val NOTIFY_WARN_ID = 4201
         const val NOTIFY_FIRE_ID = 4202
 
+        /**
+         * Marks the Intent LockActivity is launched with as the Path 2 interrupt
+         * rather than an ordinary session start, so Dart can label the lock event
+         * `scheduled_fire` instead of `session_start`.
+         */
+        const val EXTRA_FROM_ALARM = "from_alarm"
+
+        private const val REQ_WARN_ACTIVITY = 2000
+        private const val REQ_FIRE_ACTIVITY = 2001
+
         /** AGENTS.md section 4: warn ~2 minutes out. Does not cancel anything. */
         const val WARN_LEAD_MS = 2 * 60 * 1000L
 
@@ -125,18 +135,31 @@ class LockAlarm {
             nm.createNotificationChannel(ch)
         }
 
+        /**
+         * Posts the Path 2 warning or the Path 2 interrupt.
+         *
+         * [fromAlarm] marks the launch as the scheduled interrupt so
+         * LockActivity announces `onScheduledFire` instead of a session start.
+         * It also selects a distinct PendingIntent request code: the warning and
+         * the interrupt are separate launches, and sharing one request code let
+         * FLAG_UPDATE_CURRENT rewrite one launch's extras from the other, so a
+         * later warning would silently strip the interrupt marker.
+         */
         fun notify(
             context: Context,
             id: Int,
             title: String,
             text: String,
-            fullScreen: Boolean
+            fullScreen: Boolean,
+            fromAlarm: Boolean = false
         ) {
             ensureChannel(context)
             val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             val pi = PendingIntent.getActivity(
-                context, 2000,
-                Intent(context, LockActivity::class.java),
+                context, if (fromAlarm) REQ_FIRE_ACTIVITY else REQ_WARN_ACTIVITY,
+                Intent(context, LockActivity::class.java).apply {
+                    if (fromAlarm) putExtra(EXTRA_FROM_ALARM, true)
+                },
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             val b = Notification.Builder(context, CHANNEL_ID)
@@ -182,7 +205,8 @@ class LockAlarmReceiver : BroadcastReceiver() {
                     LockAlarm.NOTIFY_FIRE_ID,
                     "Your daily IELTS test is due",
                     "Complete the test to continue using this device.",
-                    fullScreen = true
+                    fullScreen = true,
+                    fromAlarm = true
                 )
             }
         }
